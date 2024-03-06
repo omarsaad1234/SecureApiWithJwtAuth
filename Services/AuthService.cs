@@ -18,6 +18,7 @@ namespace SecureApiWithJwtAuth.Services
             _userManager = userManager;
             _jwt = jwt.Value;
         }
+
         public async Task<AuthModel> RegisterAsync(RegisterModel model)
         {
             if (await _userManager.FindByEmailAsync(model.Email) is not null)
@@ -59,6 +60,37 @@ namespace SecureApiWithJwtAuth.Services
             };
 
 
+        }
+        public async Task<AuthModel> GetTokenAsync(TokenRequestModel model)
+        {
+            var authmodel = new AuthModel();
+
+            var user = await _userManager.FindByEmailAsync(model.Email);
+
+            if (user is null || !await _userManager.CheckPasswordAsync(user, model.Password))
+            {
+                authmodel.Message = "Email Or Password Is Incorrect";
+                return authmodel;
+            }
+
+            var roleList = await _userManager.GetRolesAsync(user);
+
+            var jwtSecurityToken = await CreateJwtToken(user);
+
+            authmodel.IsAuthenticated = true;
+
+            authmodel.Token = new JwtSecurityTokenHandler().WriteToken(jwtSecurityToken);
+
+            authmodel.Email = user.Email;
+
+            authmodel.ExpiresOn = jwtSecurityToken.ValidTo;
+
+            authmodel.Username = user.UserName;
+
+            authmodel.Roles = roleList.ToList();
+
+
+            return authmodel;
         }
         private async Task<JwtSecurityToken> CreateJwtToken(AppUser user)
         {
